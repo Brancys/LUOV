@@ -6,9 +6,6 @@ Este repositorio contiene una implementación del esquema de firma LUOV (Oil-and
 
 - [Descripción](#descripción)
 - [Requisitos](#requisitos)
-- [Uso](#uso)
-- [Estructura de Archivos](#estructura-de-archivos)
-- [Licencia](#licencia)
 
 ## Descripción
 
