@@ -1,18 +1,23 @@
 import binascii
 import base64
-from Crypto.Hash import SHAKE256
+import json
 import os
+from Crypto.Hash import SHAKE256
 import numpy as np
 
-# Parámetros para LUOV-7-83-283
-r = 61
-m = 60
-v = 261
-sig_size = 2464  # bytes
-pk_size_neto = 13.4 * 1024  # bytes (35.4 KB para la clave pública)
-sk_size_kb = 32  # Tamaño de la clave privada en kilobytes (32 KB)
+# Cargar parámetros desde el archivo params.json
+with open("params.json", "r") as f:
+    params = json.load(f)
+
+# Parámetros para LUOV-7-83-283 desde params.json
+r = params['r']
+m = params['m']
+v = params['v']
+sig_size = params['sig_size']  # bytes
+pk_size_neto = params['pk_size_neto'] * 1024  # bytes
+sk_size_kb = 32  # Tamaño de la clave privada en kilobytes
 sk_size = sk_size_kb * 1024  # Tamaño en bytes (32 KB)
-message_recovery_size = 409  # bytes
+message_recovery_size = params['message_recovery_size']  # bytes
 
 # Campo finito F_2 para operaciones
 def gf2_add(a, b):
@@ -35,23 +40,19 @@ def shake256_random_bytes(output_length, seed=None):
     return shake.read(output_length)
 
 def FindPk1(k, Q1, v):
-    """
-    Encuentra la matriz Pk1 de tamaño v x v a partir de Q1
-    """
+    """Encuentra la matriz Pk1 de tamaño v x v a partir de Q1."""
     Pk1 = np.zeros((v, v), dtype=int)  # Matriz Pk1 vacía de tamaño v x v
     column = 0
     for i in range(v):
         for j in range(i, v):
-            if column < Q1.shape[1]:  # Verifica que column no excede el límite de columnas de Q1
+            if column < Q1.shape[1]:  # Verifica que column no exceda el límite de columnas de Q1
                 Pk1[i, j] = Q1[k, column]
             column += 1
         column += v  # Salta los términos xi*xv+1 hasta xi*xv+m
     return Pk1
 
 def FindPk2(k, Q1, v, m):
-    """
-    Encuentra la matriz Pk,2 de tamaño v x m
-    """
+    """Encuentra la matriz Pk,2 de tamaño v x m."""
     Pk2 = np.zeros((v, m), dtype=int)
     column = 0
     for i in range(v):
@@ -106,28 +107,14 @@ def squeeze_public_map(public_sponge, v, m):
     return C, L, Q1
   
 def compute_Pk3(Pk1, Pk2, T):
-    """
-    Calcula Pk3 usando las matrices Pk1, Pk2 y T.
-    
-    :param Pk1: Matriz de tamaño (v, v)
-    :param Pk2: Matriz de tamaño (v, m)
-    :param T: Matriz de transformación de tamaño (v, m)
-    :return: Pk3 resultante
-    """
-    # Término 1: -T^T * Pk1 * T
+    """Calcula Pk3 usando las matrices Pk1, Pk2 y T."""
     term1 = -T.T @ Pk1 @ T
-    
-    # Término 2: -T^T * Pk2
     term2 = -T.T @ Pk2
-    
-    # Suma los términos para obtener Pk3
     Pk3 = term1 + term2
-    
     return Pk3
 
 def find_Q2(Q1, T):
     """Genera la matriz Q2 basada en la matriz T y Q1, ajustada al tamaño esperado."""
-    # Inicializamos Q2 como una matriz binaria con el tamaño correcto
     Q2 = np.zeros((m, (m * (m + 1)) // 2), dtype=int)
 
     for k in range(1, m):
@@ -135,14 +122,13 @@ def find_Q2(Q1, T):
         Pk2 = FindPk2(k, Q1, v, m)
         Pk3 = compute_Pk3(Pk1, Pk2, T)
         column = 1
-        for i in range(1,m):
-            Q2[k,column]= Pk3[i,i]
-            column+=1
-            for j in range (i+1,m):
-                Q2[k,column]= Pk3[i,j]+Pk3[j,i]
-                column +=1
+        for i in range(1, m):
+            Q2[k, column] = Pk3[i, i]
+            column += 1
+            for j in range(i + 1, m):
+                Q2[k, column] = Pk3[i, j] + Pk3[j, i]
+                column += 1
 
-    # Compactar Q2 usando numpy.packbits
     Q2_packed = np.packbits(Q2, axis=1)
 
     return Q2_packed
@@ -182,8 +168,13 @@ def keygen_luov():
 
     # Paso 6: Calcular Q2 a partir de Q1 y T
     Q2 = find_Q2(Q1, T)
+
     # Convertir Q2 a bytes
     Q2_bytes = Q2.tobytes()
+
+    # Crear la carpeta para almacenar las claves
+    folder_name = f"LUOV_{r}_{m}_{v}"
+    os.makedirs(folder_name, exist_ok=True)
 
     # Concatenar la semilla pública con Q2 (ahora en bytes)
     public_key = public_seed + Q2_bytes
@@ -191,16 +182,16 @@ def keygen_luov():
     print(f"Clave pública seed: {len(public_seed)} bytes")
     print(f"Clave pública generada (tamaño: {len(public_key)} bytes)")
 
-    # Guardar las claves en archivos
+        # Guardar las claves en archivos
     try:
-        with open("LUOV-61-60-261/sk.txt", "wb") as sk_file:
-            sk_file.write(private_seed)
+        with open(f"{folder_name}/sk.txt", "wb") as sk_file:
+            sk_file.write(private_seed)  # No se necesita conversión a bytes
         print("Clave secreta guardada en 'sk.txt'")
     except Exception as e:
         print(f"Error guardando la clave secreta: {e}")
 
     try:
-        with open("LUOV-61-60-261/pk.txt", "wb") as pk_file:
+        with open(f"{folder_name}/pk.txt", "wb") as pk_file:
             pk_file.write(public_key)
         print("Clave pública guardada en 'pk.txt'")
     except Exception as e:
@@ -211,7 +202,7 @@ def keygen_luov():
     private_seed_base64 = private_key_to_base64(private_seed)
 
     # Imprimir la clave privada en distintos formatos
-    print("Las claves han sido generadas y guardadas en archivos:")
+    print(f"Las claves han sido generadas y guardadas en: '{folder_name}':")
     print("Clave secreta: 'sk.txt'")
     print("Clave pública: 'pk.txt'")
 
@@ -219,3 +210,4 @@ def keygen_luov():
 
 # Ejecutar la función para generar las claves
 keygen_luov()
+
