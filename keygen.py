@@ -15,8 +15,7 @@ m = params['m']
 v = params['v']
 sig_size = params['sig_size']  # bytes
 pk_size_neto = params['pk_size_neto'] * 1024  # bytes
-sk_size_kb = 32  # Tamaño de la clave privada en kilobytes
-sk_size = sk_size_kb * 1024  # Tamaño en bytes (32 KB)
+sk_size = 32  # Tamaño en bytes (32 KB)
 message_recovery_size = params['message_recovery_size']  # bytes
 
 # Campo finito F_2 para operaciones
