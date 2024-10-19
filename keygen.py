@@ -172,7 +172,7 @@ def keygen_luov():
     Q2_bytes = Q2.tobytes()
 
     # Crear la carpeta para almacenar las claves
-    folder_name = f"LUOV_{r}_{m}_{v}"
+    folder_name = f"keys/LUOV_{r}_{m}_{v}"
     os.makedirs(folder_name, exist_ok=True)
 
     # Concatenar la semilla pública con Q2 (ahora en bytes)
