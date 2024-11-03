@@ -92,7 +92,12 @@ def initialize_public_sponge(public_seed):
 # Squeezing para obtener el mapa público (C, L, Q1)
 def squeeze_public_map(public_sponge, v, m):
     C = public_sponge.read(32)
-    L = public_sponge.read(32)
+
+    # Asegúrate de leer suficientes bytes para L
+    L_bytes = public_sponge.read(m * m)  # Asegúrate de leer el número correcto de bytes para la forma de L
+
+    # Convertir L a un array de NumPy con la forma adecuada
+    L = np.frombuffer(L_bytes, dtype=np.uint8).reshape((m, m))  # Cambia a la forma (m, m)
 
     # Calculamos el tamaño esperado para Q1 basado en los valores de m y v
     q1_size = (v * (v + 1)) // 2 + (v * m)
@@ -206,3 +211,4 @@ def keygen_luov():
     print("Clave pública: 'pk.txt'")
 
     return private_seed, public_seed, Q2
+

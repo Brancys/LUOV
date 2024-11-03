@@ -1,9 +1,12 @@
 import numpy as np
+import json
 from Crypto.Hash import SHAKE256
-from keygen import FindPk1, FindPk2, squeeze_public_map, squeeze_T, BuildAugmentedMatrix, get_parameters
+from keygen import FindPk1, FindPk2, initialize_and_absorb, squeeze_public_seed, initialize_public_sponge
 
 # Cargar parámetros desde el archivo params.json
-params = get_parameters()
+with open("params.json", "r") as f:
+    params = json.load(f)
+    
 r = params['r']  # Obtiene el valor de r
 m = params['m']  # Obtiene el valor de m
 v = params['v']  # Obtiene el valor de v
@@ -19,26 +22,58 @@ def H(private_seed):
     shake.update(private_seed)
     return shake.read(32)  # Devuelve los primeros 32 bytes como semilla pública
 
-def hash_digest(message, salt):
-    """
-    Genera el hash digest para el mensaje dado y el salt.
+def squeeze_T(private_seed, v, m):
+    """Genera la matriz T de tamaño v x m a partir de la semilla privada."""
+    # Inicializa la esponja con la semilla privada
+    sponge = SHAKE256.new()
+    sponge.update(private_seed)  # Actualiza la esponja con la semilla privada
+
+    total_bytes = v * m  # Número total de bytes necesarios para una matriz de tamaño v x m
+    T_bytes = sponge.read(total_bytes)  # Leer los bytes correspondientes
     
-    :param message: Mensaje que se va a firmar
-    :param salt: Salt utilizado en el proceso
-    :return: Vector de hash digest como elementos de F_2
-    """
-    input_to_hash = message + b'\x00' + salt + m.to_bytes(4, byteorder='big')
-    hash_output = H(input_to_hash)
+    # Convertir los bytes en una matriz de NumPy con dimensiones v x m
+    T = np.frombuffer(T_bytes, dtype=np.uint8).reshape((v, m))
+    
+    return T
 
-    bits_needed = m * r  # Total de bits necesarios
-    digest_bits = int.from_bytes(hash_output, byteorder='big')
+def squeeze_public_map(public_sponge, v, m):
+    C = public_sponge.read(32)
 
-    hash_vector = []
-    for i in range(bits_needed):
-        bit = (digest_bits >> i) & 1  # Extraer el bit i
-        hash_vector.append(bit)
+    # Leer suficientes bytes para L
+    L_bytes = public_sponge.read(m * m)  # Asumiendo que L debería ser de forma (m, m)
 
-    return np.array(hash_vector)  # Convertir a un array de NumPy para facilitar su uso
+    # Asegúrate de que tienes suficientes bytes
+    if len(L_bytes) < m * m:
+        raise ValueError("No se han leído suficientes bytes para L.")
+    
+    # Convertir L a un array de NumPy con la forma correcta
+    L = np.frombuffer(L_bytes, dtype=np.uint8).reshape((m, m))  # Cambia la forma según sea necesario
+
+    # Verificación de la forma de L
+    print(f"L shape after reshaping: {L.shape}")  # Debugging line to check the shape of L
+
+    # Calculamos el tamaño esperado para Q1 basado en los valores de m y v
+    q1_size = (v * (v + 1)) // 2 + (v * m)
+
+    # Extraemos los bytes para Q1 desde el public_sponge
+    Q1_bytes = public_sponge.read(q1_size * m)
+    
+    # Transformamos los bytes en una matriz de NumPy de forma (m, q1_size)
+    Q1 = np.frombuffer(Q1_bytes, dtype=np.uint8).reshape((m, q1_size))
+
+    return C, L, Q1
+
+def hash_digest(message, salt):
+    """Genera el digest del hash para el mensaje y el salt."""
+    concatenated = message + salt  # Concatenar mensaje y salt
+
+    # Generar el hash usando SHAKE256
+    hash_output = H(concatenated)  # Obtener el hash
+    hash_size = (m * r) // 8  # Ajusta el tamaño según sea necesario
+
+    # Asegúrate de que el hash sea del tipo correcto
+    h = np.frombuffer(hash_output, dtype=np.uint8)[:hash_size]  # Convertir a uint8 y ajustar tamaño
+    return h
 
 def sign(message, private_seed):
     """
@@ -49,22 +84,34 @@ def sign(message, private_seed):
     :return: (s, salt) - Firma generada y salt utilizado
     """
     public_seed = H(private_seed)  # Generar la semilla pública
-    C, L, Q1 = squeeze_public_map(public_seed, v, m)  # Obtener el mapa público
+
+    # Inicializar la esponja pública con la semilla pública
+    public_sponge = SHAKE256.new()
+    public_sponge.update(public_seed)
+
+   # Obtener el mapa público
+    C, L, Q1 = squeeze_public_map(public_sponge, v, m)
+
+    # Imprimir las formas para depuración
+    print(f"C shape: {len(C)}, L shape: {L.shape}, Q1 shape: {Q1.shape}")
 
     # Generar un salt aleatorio
     salt = np.random.bytes(16)
 
     while True:
-        # Generar un vector v aleatorio
+        # Generar un vector v aleatorio como un array de bytes
         v_random = np.random.bytes((v * r) // 8)  # Cambia según la longitud necesaria
         
+        # Convertir v_random a un array de NumPy
+        v_random = np.frombuffer(v_random, dtype=np.uint8)  # Convertir bytes a uint8
+
         # Calcular el hash digest del mensaje
         h = hash_digest(message, salt)  # Calcular h utilizando la función hash_digest
 
         # Construir la matriz aumentada
-        T = squeeze_T(private_seed, v, m)  # Definir T aquí
-        A = BuildAugmentedMatrix(C, L, Q1, T, h, v_random)
-        
+        T = squeeze_T(private_seed, v, m)  # Asegúrate de que private_seed es de tipo bytes
+        A = BuildAugmentedMatrix(C, L, Q1, T, h, v_random)  # Asegúrate de que v_random es un array
+
         # Verificar si el sistema tiene una solución única
         # Aquí debes implementar la lógica para verificar la unicidad
         if F(v_random | o) == h:  # Asegúrate de que F esté implementado correctamente
@@ -75,45 +122,32 @@ def sign(message, private_seed):
     
     return s, salt
 
-# Implementación de BuildAugmentedMatrix
+# Función para construir la matriz aumentada
 def BuildAugmentedMatrix(C, L, Q1, T, h, v):
-    """
-    Construye la matriz aumentada para el sistema lineal F(v||0) = h.
-    
-    :param C: Parte constante del mapa público P
-    :param L: Parte lineal del mapa público P
-    :param Q1: Parte cuadrática del mapa público P
-    :param T: Matriz de transformación lineal
-    :param h: Hash digest
-    :param v: Asignación a las variables de vinagre
-    :return: LHS || RHS - La matriz aumentada
-    """
-    # Inicialización de las matrices
-    RHS = h - C - L @ (np.concatenate((v, np.zeros(1))))  # RHS del sistema
-    LHS = np.zeros((m, m + 1), dtype=int)  # LHS inicializada
+    # Asegúrate de que todas las dimensiones sean correctas
+    print(f"Shape of h: {h.shape}, Shape of C: {len(C)}, Shape of L: {L.shape}, Shape of v: {v.shape}")
 
-    for k in range(1, m + 1):
-        Pk1 = FindPk1(k, Q1, v)
-        Pk2 = FindPk2(k, Q1, v, m)
+    # Convertir h y C a un array de la misma forma
+    if h.shape[0] != len(C):
+        raise ValueError(f"Dimension mismatch: h has shape {h.shape}, C has length {len(C)}")
 
-        # Evaluar términos de fk que son cuadráticos en variables de vinagre
-        RHS[k - 1] -= v @ Pk1
+    # Expandir h y C si es necesario
+    h_expanded = np.tile(h, (L.shape[0], 1)).flatten()  # Expandir h
+    C_expanded = np.tile(C, (L.shape[0], 1)).flatten()  # Expandir C
 
-        # Términos que son bilineales en las variables de vinagre y las variables de aceite
-        Fk2 = (Pk1 + Pk1.T) @ T + Pk2
-        LHS[k - 1] += Fk2
+    # Asegúrate de que v tenga la forma correcta
+    if v.ndim == 1:  # Si v es un vector, lo convertimos en matriz columna
+        v = v.reshape(-1, 1)
 
-    return LHS, RHS
+    # Verificar la forma de concatenated_v
+    concatenated_v = np.concatenate((v.flatten(), np.zeros(1, dtype=v.dtype)))  # Convertir a 1D
+    print(f"Shape of concatenated_v: {concatenated_v.shape}")
 
-# Función para validar la firma (puedes agregarla si es necesaria)
-def verify_signature(message, signature, public_key):
-    """
-    Verifica la firma digital del mensaje dado utilizando la clave pública.
-    
-    :param message: Mensaje que fue firmado
-    :param signature: Firma a verificar
-    :param public_key: Clave pública utilizada para la verificación
-    :return: True si la firma es válida, False de lo contrario
-    """
-    # Para el proyecto 3, esta función no es necesaria aun y no se implementará
-    pass
+    # Verificar si L puede multiplicarse por concatenated_v
+    if L.shape[1] != concatenated_v.shape[0]:
+        raise ValueError("Las dimensiones no son compatibles con la multiplicación de matrices.")
+
+    # RHS del sistema
+    RHS = h_expanded - C_expanded - (L @ concatenated_v)
+
+    return RHS  # o cualquier otra matriz que estés construyendo
