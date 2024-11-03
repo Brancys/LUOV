@@ -206,7 +206,3 @@ def keygen_luov():
     print("Clave pública: 'pk.txt'")
 
     return private_seed, public_seed, Q2
-
-# Ejecutar la función para generar las claves
-keygen_luov()
-
