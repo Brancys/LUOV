@@ -30,3 +30,4 @@ Puedes instalar los paquetes requeridos usando pip:
 
 ```bash 
 pip install numpy pycryptodome
+```
