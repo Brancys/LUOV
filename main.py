@@ -31,6 +31,7 @@ n = m + v
 private_seed = load_private_seed(folder_name)
 print("Private seed: ", private_seed)
 print(f" Parametros: r = {r}, m = {m}, v = {v}, n = {n}")
+
 message = "Este es un mensaje de prueba que quiero firmar.".encode('utf-8')
 
 signature, salt = sign(private_seed, message, m, v, r, n)
