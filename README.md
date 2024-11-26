@@ -1,6 +1,6 @@
-# Generación de Claves LUOV
+# Criptosistema LUOV
 
-Este repositorio contiene una implementación del esquema de firma LUOV (Oil-and-Vinegar No Balanceado basado en Redes) para la generación de claves. El algoritmo está diseñado para ser seguro contra ataques cuánticos.
+Este repositorio contiene una implementación del esquema de firma LUOV (Oil-and-Vinegar No Balanceado basado en Redes). El algoritmo está diseñado para ser seguro contra ataques cuánticos.
 
 ## Tabla de Contenidos
 
@@ -29,5 +29,5 @@ Para ejecutar esta implementación, necesitarás:
 Puedes instalar los paquetes requeridos usando pip:
 
 ```bash 
-pip install numpy pycryptodome
+pip install numpy pycryptodome galois
 ```
