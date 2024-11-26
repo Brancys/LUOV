@@ -1,5 +1,5 @@
 from keygen import keygen_luov
-from sign import sign
+from sign_gen import sign
 from verify import verify
 import json, os
 
