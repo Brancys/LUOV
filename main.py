@@ -31,7 +31,7 @@ folder_name = f"keys/LUOV_{r}_{m}_{v}"
 private_seed = load_private_seed(folder_name)
 message = "Este es un mensaje de prueba que quiero firmar.".encode('utf-8')
 
-signature, salt = sign(message, private_seed)
+signature, salt = sign(private_seed, message)
 
 # Mostrar la firma y el salt
 print("Firma generada: ", signature)
