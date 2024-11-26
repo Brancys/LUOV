@@ -1,5 +1,6 @@
 from keygen import keygen_luov
 from sign import sign
+from verify import verify
 import json, os
 
 # Cargar parámetros desde el archivo params.json
@@ -10,6 +11,9 @@ with open("params.json", "r") as f:
 r = params['r']
 m = params['m']
 v = params['v']
+print(f" Parametros: r = {r}, m = {m}, v = {v}")
+
+n = m + v
 
 def load_private_seed(folder_name):
   # Ruta al archivo de la clave secreta
@@ -25,17 +29,16 @@ def load_private_seed(folder_name):
 # keygen_luov() 
 # Las claves ya están generadas
 
-folder_name = f"keys/LUOV_{r}_{m}_{v}"
-n = m + v
+private_seed = load_private_seed(f"keys/LUOV_{r}_{m}_{v}")
+print("Private seed loaded: ", private_seed)
+
 # Firmar un mensaje
-private_seed = load_private_seed(folder_name)
-print("Private seed: ", private_seed)
-print(f" Parametros: r = {r}, m = {m}, v = {v}, n = {n}")
-
 message = "Este es un mensaje de prueba que quiero firmar.".encode('utf-8')
-
 signature, salt = sign(private_seed, message, m, v, r, n)
-
-# Mostrar la firma y el salt
 print("Firma generada: ", signature)
 print("Salt utilizado: ", salt)
+
+
+# Verificar la firma
+verification = verify(private_seed, message,signature,r,m,v,1)
+print(f'Firma correcta? : {verification}')

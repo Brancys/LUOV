@@ -118,21 +118,3 @@ def sign(private_seed: bytes, message_bytes: bytes, m: int, v: int, r: int, n: i
 
     # Devolver la firma y el salt
     return s, salt
-
-
-# # Ejemplo de uso
-# private_seed = b'\x01' * 32  # Ejemplo de private_seed de 32 bytes
-
-# # Parámetros de ejemplo
-# r = 7
-# m = 57
-# v = 197
-# n = m + v
-# message = "Este es un mensaje de prueba que quiero firmar."
-# message_bytes = message.encode('utf-8')
-
-# # LUOV-7-57-197
-# # LUOV-7-83-283 
-# # LUOV-7-110-374
-
-# sign(private_seed, message_bytes, m, v, r, n)
