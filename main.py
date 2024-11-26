@@ -1,5 +1,5 @@
 from keygen import keygen_luov
-from sign_gen import sign
+from sign import sign
 import json, os
 
 # Cargar parámetros desde el archivo params.json
