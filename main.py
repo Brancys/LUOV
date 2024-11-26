@@ -34,11 +34,13 @@ print("Private seed loaded: ", private_seed)
 
 # Firmar un mensaje
 message = "Este es un mensaje de prueba que quiero firmar.".encode('utf-8')
+print("Generando firma para el mensaje: ", message)
 signature, salt = sign(private_seed, message, m, v, r, n)
 print("Firma generada: ", signature)
 print("Salt utilizado: ", salt)
 
 
 # Verificar la firma
+print("Verificando firma...")
 verification = verify(private_seed, message,signature,r,m,v,1)
 print(f'Firma correcta? : {verification}')

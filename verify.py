@@ -1,4 +1,6 @@
-from signature import generate_hash_digest_H
+from sign import generate_hash_digest_H
+import numpy as np
+import galois
 
 def decode_signature(signature:bytes,r:int)->np.ndarray:
   signature_without_salt = signature[:-16]
@@ -47,8 +49,6 @@ def evaluatePublicMap(public_key:bytes,s:bytes,v:int,m:int,lvl:int,r:int):
 
 def get_salt(signature:bytes)->bytes:
   return signature[-16:]
-
-import galois
 
 def verify(public_key: bytes, message: str, candidate_signature: bytes, r: int, m: int, v: int, lvl: int) -> bool:
     """
