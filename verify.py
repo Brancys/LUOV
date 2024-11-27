@@ -50,7 +50,7 @@ def evaluatePublicMap(public_key:bytes,s:bytes,v:int,m:int,lvl:int,r:int):
 def get_salt(signature:bytes)->bytes:
   return signature[-16:]
 
-def verify(public_key: bytes, message: str, candidate_signature: bytes, r: int, m: int, v: int, lvl: int) -> bool:
+def verify(public_key: bytes, message: str, signature: bytes, salt: bytes, r: int, m: int, v: int, lvl: int) -> bool:
     """
     Verifica la validez de una firma candidata dada una clave pública y un mensaje.
 
@@ -69,10 +69,10 @@ def verify(public_key: bytes, message: str, candidate_signature: bytes, r: int, 
     GF = galois.GF(2**r)
     
     # Calcular el digest del mensaje con la función generate_hash_digest_H
-    h = GF(generate_hash_digest_H(message, get_salt(candidate_signature), m, lvl, r))
+    h = GF(generate_hash_digest_H(message, salt, m, lvl, r))
     
     # Evaluar el mapa público usando la clave pública y la firma candidata
-    e = evaluatePublicMap(public_key, candidate_signature, v, m, lvl, r)
+    e = evaluatePublicMap(public_key, signature, v, m, lvl, r)
     
     # Verificar si el digest h coincide con la evaluación e
     return h == e
