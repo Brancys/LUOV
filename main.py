@@ -42,5 +42,5 @@ print("Salt utilizado: ", salt)
 
 # Verificar la firma
 print("Verificando firma...")
-verification = verify(private_seed, message,signature,r,m,v,1)
+verification = verify(private_seed, message,signature, salt, r,m,v,1)
 print(f'Firma correcta? : {verification}')
